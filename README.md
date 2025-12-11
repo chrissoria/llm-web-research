@@ -1,3 +1,5 @@
+![llm-web-research Logo](https://github.com/chrissoria/llm-web-research/blob/main/images/logo.png?raw=True)
+
 # llm-web-research
 
 A precision-focused LLM-powered web research tool that prioritizes **accuracy over quantity**.
@@ -30,8 +32,8 @@ results = lwr.web_research(
     model_source="anthropic"
 )
 
-# Results include answer, confidence (0-5), and source URLs
-print(results[['search_input', 'answer', 'confidence']])
+# Returns a pandas DataFrame with answer and source URL for each input
+print(results[['search_input', 'answer', 'url']])
 ```
 
 ### Using Different Providers
@@ -123,14 +125,14 @@ The Funnel of Verification is a multi-step pipeline that progressively narrows d
 
 4. **Step 4 - Structured Output** (no web search): Format the final answer as strict JSON with binary confidence scoring.
 
-### Binary Confidence Scoring
+### Internal Confidence Scoring
 
-Unlike traditional 0-5 or 0-100 confidence scales that create false granularity, FoVe uses **binary confidence (0 or 1)**:
+Internally, FoVe uses **binary confidence scoring (0 or 1)** to make decisions:
 
 - **1** = The answer has been verified, applies to a uniquely identified entity, and no contradicting information was found
 - **0** = Any doubt exists, including ambiguity, conflicting sources, or uncertainty about which entity is being discussed
 
-This binary approach forces the system to make a clear decision: either we're confident enough to stand behind this answer, or we're not.
+When confidence is 0, the answer is automatically set to "Information unclear" rather than returning a potentially wrong answer. This binary approach forces the system to make a clear decision: either we're confident enough to stand behind this answer, or we're not.
 
 ### Early Exit Strategy
 
@@ -140,21 +142,58 @@ A key feature of FoVe is its **early exit strategy**. Rather than pushing throug
 Query: "John Smith net worth"
 Step 1: Gathers information about various John Smiths
 Step 2: Detects "John Smith" is a common name with multiple possible referents
-→ EARLY EXIT: Returns {"answer": "Information unclear", "confidence": "0"}
+→ EARLY EXIT: Returns {"answer": "Information unclear", "url": ""}
 ```
 
 This is intentional - **no answer is better than a wrong answer** for precision-focused use cases.
 
 ## Key Features
 
+- **Structured DataFrame Output**: Simply provide a question and a list of inputs, and receive a clean pandas DataFrame with answers and source URLs
+- **Incremental Saving (Safety Mode)**: Save results to CSV after each query, protecting against API failures or interruptions during long-running searches
 - **Funnel of Verification**: Multi-step pipeline that catches ambiguity before it becomes error
-- **Binary confidence scoring**: Clear 0/1 scoring instead of false granularity
 - **Early exit on ambiguity**: Returns "Information unclear" rather than guessing
 - **Multi-provider support**: Works with Anthropic, Google, and Perplexity APIs
 - **Citation tracking**: Source URLs included with every result
 - **Verbose mode**: Debug output showing each prompt and response in the pipeline
 - **Date filtering**: Constrain results to specific time periods
-- **Safety mode**: Save progress incrementally for long-running searches
+
+### Structured Output
+
+The package returns results as a pandas DataFrame, making it easy to integrate into data analysis workflows:
+
+```python
+results = lwr.web_research(
+    search_question="founding year",
+    search_input=["Apple", "Microsoft", "Google", "Amazon"],
+    api_key="your-api-key",
+    model_source="anthropic"
+)
+
+# Results DataFrame:
+#   search_input    answer              url
+# 0 Apple           1976                https://...
+# 1 Microsoft       1975                https://...
+# 2 Google          1998                https://...
+# 3 Amazon          1994                https://...
+```
+
+### Safety Mode: Incremental Saving
+
+For large batch searches, enable safety mode to save progress after each query. This prevents data loss if the API fails mid-run:
+
+```python
+results = lwr.web_research(
+    search_question="current CEO",
+    search_input=large_company_list,  # hundreds of companies
+    api_key="your-api-key",
+    model_source="anthropic",
+    safety=True,
+    filename="ceo_research.csv"  # saves after each query
+)
+```
+
+If the process is interrupted, you'll have all completed results saved to the CSV file.
 
 ## Use Cases
 

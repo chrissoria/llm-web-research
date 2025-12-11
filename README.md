@@ -1,4 +1,4 @@
-![llm-web-research Logo](https://github.com/chrissoria/llm-web-research/blob/main/images/logo.png?raw=True)
+![llm-web-research Logo](https://github.com/chrissoria/llm-web-research/blob/main/images/logo_small.png?raw=True)
 
 # llm-web-research
 

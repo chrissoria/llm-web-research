@@ -1,7 +1,7 @@
-# Web research function for LLM-powered web search
-# Single-step search with ambiguity detection and post-processing
+# Baseline web research - simple prompt without ambiguity detection
+# FOR INTERNAL TESTING ONLY - not exported in package
 
-def web_research(
+def baseline_web_research(
     search_question,
     search_input,
     api_key,
@@ -10,7 +10,7 @@ def web_research(
     user_model="claude-sonnet-4-20250514",
     creativity=None,
     safety=False,
-    filename="web_research_results.csv",
+    filename="baseline_results.csv",
     save_directory=None,
     model_source="anthropic",
     start_date=None,
@@ -19,29 +19,27 @@ def web_research(
     time_delay=5
 ):
     """
-    Perform web research using LLMs with ambiguity detection.
+    Baseline web research - simple prompt without ambiguity detection.
 
-    This is a faster single-step search that still includes ambiguity detection
-    and confidence scoring. For maximum accuracy on ambiguous queries, use
-    precise_web_research() instead.
+    FOR INTERNAL TESTING ONLY. Use this to compare against web_research()
+    and precise_web_research() to measure the impact of ambiguity detection.
 
-    The function will return "Information unclear" for:
-    - Ambiguous queries (common names, multiple entities with same name)
-    - Low confidence answers (confidence = 0)
-    - Multiple possible entities detected
+    This function:
+    - Uses a simple, straightforward prompt
+    - Does NOT check for ambiguity
+    - Does NOT filter out uncertain responses
+    - Returns whatever answer the model provides
 
     Args:
         search_question (str): The question to answer for each search item.
-            Example: "current CEO" or "founding date"
         search_input (list or pd.Series): List of items to search for.
-            Example: ["Apple Inc", "Microsoft", "Google"]
         api_key (str): API key for the model provider.
         answer_format (str): Expected format of the answer. Default "concise".
         additional_instructions (str): Extra instructions for the search.
         user_model (str): Model to use. Default "claude-sonnet-4-20250514".
         creativity (float): Temperature setting. None uses model default.
         safety (bool): If True, saves progress after each item.
-        filename (str): Output filename. Default "web_research_results.csv".
+        filename (str): Output filename. Default "baseline_results.csv".
         save_directory (str): Directory to save results. None uses current dir.
         model_source (str): Provider - "anthropic", "google", or "perplexity".
         start_date (str): Filter results after this date (YYYY-MM-DD).
@@ -52,17 +50,8 @@ def web_research(
     Returns:
         pd.DataFrame: Results with columns:
             - search_input: Original search item
-            - answer: Extracted answer or "Information unclear"/"Information not found"
+            - answer: The model's answer (no filtering)
             - url: Source URL for the answer
-
-    Example:
-        >>> import llm_web_research as lwr
-        >>> results = lwr.web_research(
-        ...     search_question="current CEO",
-        ...     search_input=["Apple Inc", "Microsoft"],
-        ...     api_key="your-api-key",
-        ...     model_source="anthropic"
-        ... )
     """
     import os
     import re
@@ -74,7 +63,6 @@ def web_research(
     from datetime import datetime
 
     def _validate_date(date_str):
-        """Validates YYYY-MM-DD format"""
         if date_str is None:
             return True
         if not isinstance(date_str, str):
@@ -89,24 +77,6 @@ def web_research(
         except (ValueError, OverflowError):
             return False
 
-    def _postprocess_result(parsed):
-        """
-        Post-process to ensure consistency.
-        If confidence is 0 OR multiple_entities is 1, set answer to "Information unclear".
-        """
-        confidence = parsed.get("confidence")
-        multiple = parsed.get("multiple_entities")
-
-        # Check confidence (could be string "0" or int 0)
-        if confidence == "0" or confidence == 0:
-            parsed["answer"] = "Information unclear"
-
-        # Check multiple_entities
-        if multiple == "1" or multiple == 1:
-            parsed["answer"] = "Information unclear"
-
-        return parsed
-
     if not _validate_date(start_date):
         raise ValueError(f"start_date must be in YYYY-MM-DD format, got: {start_date}")
     if not _validate_date(end_date):
@@ -114,13 +84,11 @@ def web_research(
 
     model_source = model_source.lower()
 
-    # Convert dates for Perplexity format
     if model_source == "perplexity" and start_date is not None:
         start_date = datetime.strptime(start_date, "%Y-%m-%d").strftime("%m/%d/%Y")
     if model_source == "perplexity" and end_date is not None:
         end_date = datetime.strptime(end_date, "%Y-%m-%d").strftime("%m/%d/%Y")
 
-    # Set default models for other providers
     if model_source == "google" and user_model == "claude-sonnet-4-20250514":
         user_model = "gemini-2.5-flash"
     if model_source == "perplexity" and user_model == "claude-sonnet-4-20250514":
@@ -128,7 +96,7 @@ def web_research(
 
     results = []
 
-    for idx, item in enumerate(tqdm(search_input, desc="Searching")):
+    for idx, item in enumerate(tqdm(search_input, desc="Baseline searching")):
         if idx > 0:
             time.sleep(time_delay)
 
@@ -140,21 +108,16 @@ def web_research(
             })
             continue
 
-        # Single consolidated prompt with ambiguity detection
-        prompt = f"""<role>You are a research assistant specializing in finding current, factual information. You are cautious and flag any ambiguity.</role>
-
-<task>Find information about {item}'s {search_question}</task>
+        # Simple straightforward prompt - no ambiguity detection
+        prompt = f"""Find information about {item}'s {search_question}.
 
 <answer_format_required>{answer_format}</answer_format_required>
 
 <rules>
-- Search for the most current and authoritative information available
-- Prioritize official sources when possible
-- Include the URL of your most authoritative source
-- CRITICAL: Provide ONLY the direct answer with no filler text
+- Provide ONLY the direct answer with no filler text
 - Do NOT say "The answer is...", "Based on...", "The CEO of X is...", etc.
 - Just provide the answer itself (e.g., "Satya Nadella" not "The CEO of Microsoft is Satya Nadella")
-- CRITICAL: Your answer MUST follow the exact format specified in <answer_format_required>
+- Your answer MUST follow the exact format specified in <answer_format_required>
   - If format is "name" → just the name (e.g., "Satya Nadella")
   - If format is "month, year" → use that format (e.g., "January, 2014")
   - If format is "name, date" → use that format (e.g., "Satya Nadella, February 4, 2014")
@@ -162,48 +125,23 @@ def web_research(
 {additional_instructions}
 </rules>
 
-<CRITICAL_AMBIGUITY_CHECK>
-You MUST set confidence to 0 if ANY of the following are true:
-1. The search input "{item}" could refer to MULTIPLE different entities (e.g., "Michael Johnson" could be many people, "Springfield" exists in many states, "Washington County" exists in 30+ states)
-2. You found CONFLICTING information from different sources
-3. The search input is a COMMON NAME without sufficient qualifying information:
-   - Common person names: John Smith, Michael Johnson, David Williams, etc.
-   - Common place names: Springfield, Franklin, Washington, Clinton, etc.
-   - Common county names: Washington County, Jefferson County, Franklin County, etc.
-4. You cannot be 100% certain which specific entity is being discussed
-5. The information found might apply to a different entity with the same name
-
-When in doubt, set confidence to 0 - it is better to be cautious than wrong.
-</CRITICAL_AMBIGUITY_CHECK>
-
-<format>
-Return your response as valid JSON with this exact structure:
+Return your response as JSON:
 {{
-    "answer": "Answer in the EXACT format specified in <answer_format_required>, or 'Information not found'",
-    "url": "URL of the most authoritative source",
-    "confidence": "1 if confident and unambiguous, 0 if ANY doubt or ambiguity",
-    "multiple_entities": "1 if the answer involves multiple entities or the query is ambiguous, 0 otherwise"
-}}
+    "answer": "Answer in the EXACT format specified above",
+    "url": "Source URL"
+}}"""
 
-IMPORTANT:
-- confidence must be exactly 0 or 1
-- If information is not found, use "Information not found" for answer
-- If query is ambiguous, set confidence to 0
-- Answer must match the exact format specified (e.g., just "Satya Nadella" not "The CEO is Satya Nadella")
-</format>"""
-
-        # Add date filtering to prompt
+        # Add date filtering
         if start_date is not None and end_date is not None:
-            prompt = prompt.replace("<rules>", f"<rules>\n- Focus on webpages published between {start_date} and {end_date}")
+            prompt += f"\n\nFocus on information from between {start_date} and {end_date}."
         elif start_date is not None:
-            prompt = prompt.replace("<rules>", f"<rules>\n- Focus on webpages published after {start_date}")
+            prompt += f"\n\nFocus on information from after {start_date}."
         elif end_date is not None:
-            prompt = prompt.replace("<rules>", f"<rules>\n- Focus on webpages published before {end_date}")
+            prompt += f"\n\nFocus on information from before {end_date}."
 
         reply = None
         urls = []
 
-        # Execute search based on provider
         if model_source == "anthropic":
             import anthropic
             client = anthropic.Anthropic(api_key=api_key)
@@ -226,7 +164,6 @@ IMPORTANT:
                         if getattr(block, "type", "") == "text"
                     ).strip()
 
-                    # Extract URLs
                     urls = [
                         url_item["url"]
                         for block in message.content
@@ -266,7 +203,6 @@ IMPORTANT:
                 response.raise_for_status()
                 result = response.json()
 
-                # Extract URLs from grounding metadata
                 for cand in result.get("candidates", []):
                     rendered_html = (
                         cand.get("groundingMetadata", {})
@@ -318,53 +254,50 @@ IMPORTANT:
                 "Supported: 'anthropic', 'google', 'perplexity'"
             )
 
-        # Parse response and apply post-processing
+        # Parse response - NO post-processing, just extract answer
         if reply is not None:
-            # Extract JSON from response
             extracted_json = regex.findall(r'\{(?:[^{}]|(?R))*\}', reply, regex.DOTALL)
             if extracted_json:
                 try:
                     parsed = json.loads(extracted_json[0])
-                    parsed = _postprocess_result(parsed)
-
-                    # Inject URL from search results if not in JSON
+                    # Inject URL if not in JSON
                     if (not parsed.get("url") or parsed.get("url") == "") and urls:
                         parsed["url"] = urls[0]
 
                     results.append({
                         "search_input": item,
-                        "answer": parsed.get("answer", "Information unclear"),
+                        "answer": parsed.get("answer", reply),  # Fall back to raw reply
                         "url": parsed.get("url", "")
                     })
                 except json.JSONDecodeError:
+                    # If JSON parsing fails, use raw reply as answer
                     results.append({
                         "search_input": item,
-                        "answer": "Information unclear",
+                        "answer": reply[:500],  # Truncate if too long
                         "url": urls[0] if urls else ""
                     })
             else:
+                # No JSON found, use raw reply
                 results.append({
                     "search_input": item,
-                    "answer": "Information unclear",
+                    "answer": reply[:500],
                     "url": urls[0] if urls else ""
                 })
         else:
             results.append({
                 "search_input": item,
-                "answer": "Information unclear",
+                "answer": "Error: No response",
                 "url": ""
             })
 
-        # Safety save after each item
+        # Safety save
         if safety:
             temp_df = pd.DataFrame(results)
             save_path = os.path.join(save_directory or os.getcwd(), filename)
             temp_df.to_csv(save_path, index=False)
 
-    # Create final DataFrame
     df = pd.DataFrame(results)
 
-    # Save final results if directory specified
     if save_directory is not None:
         save_path = os.path.join(save_directory, filename)
         df.to_csv(save_path, index=False)

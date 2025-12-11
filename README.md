@@ -21,26 +21,50 @@ pip install llm-web-research
 
 ## Quick Start
 
+This package provides two functions:
+- **`precise_web_research`** - Uses the Funnel of Verification (FoVe) for maximum accuracy (recommended)
+- **`web_research`** - Faster single-step search for less ambiguous queries
+
+### Precise Web Research (Recommended)
+
+Use `precise_web_research` when accuracy is critical. It uses a 4-step verification pipeline that catches ambiguity and returns "Information unclear" rather than guessing:
+
 ```python
 import llm_web_research as lwr
 
-# Search for CEO information with confidence scoring
-results = lwr.web_research(
+# Precision-focused search with verification
+results = lwr.precise_web_research(
     search_question="current CEO",
     search_input=["Apple Inc", "Microsoft", "Google"],
     api_key="your-anthropic-api-key",
     model_source="anthropic"
 )
 
-# Returns a pandas DataFrame with answer and source URL for each input
+# Returns a pandas DataFrame with verified answers and source URLs
 print(results[['search_input', 'answer', 'url']])
+```
+
+### Basic Web Research (Faster)
+
+Use `web_research` for quick searches when the query is unambiguous:
+
+```python
+# Fast single-step search
+results = lwr.web_research(
+    search_question="founding year",
+    search_input=["Apple Inc", "Microsoft"],
+    api_key="your-anthropic-api-key",
+    model_source="anthropic"
+)
 ```
 
 ### Using Different Providers
 
+Both functions support multiple providers:
+
 ```python
 # Google Gemini with grounded search
-results = lwr.web_research(
+results = lwr.precise_web_research(
     search_question="founding year",
     search_input=["Tesla", "SpaceX"],
     api_key="your-google-api-key",
@@ -49,7 +73,7 @@ results = lwr.web_research(
 )
 
 # Perplexity for enhanced search
-results = lwr.web_research(
+results = lwr.precise_web_research(
     search_question="headquarters location",
     search_input=["OpenAI", "Anthropic"],
     api_key="your-perplexity-api-key",
@@ -57,29 +81,14 @@ results = lwr.web_research(
 )
 ```
 
-### Advanced Search with Tavily
-
-For deeper searches, use Tavily's advanced search:
-
-```python
-results = lwr.web_research(
-    search_question="recent acquisitions",
-    search_input=["Amazon", "Meta"],
-    api_key="your-anthropic-api-key",
-    model_source="anthropic",
-    search_depth="advanced",
-    tavily_api="your-tavily-api-key"
-)
-```
-
 ### Date Filtering
 
 ```python
-results = lwr.web_research(
+results = lwr.precise_web_research(
     search_question="stock price",
     search_input=["NVIDIA"],
     api_key="your-api-key",
-    model_source="anthropic",
+    model_source="perplexity",  # date filtering works best with Perplexity
     start_date="2024-01-01",
     end_date="2024-12-31"
 )
@@ -160,10 +169,10 @@ This is intentional - **no answer is better than a wrong answer** for precision-
 
 ### Structured Output
 
-The package returns results as a pandas DataFrame, making it easy to integrate into data analysis workflows:
+Both functions return results as a pandas DataFrame, making it easy to integrate into data analysis workflows:
 
 ```python
-results = lwr.web_research(
+results = lwr.precise_web_research(
     search_question="founding year",
     search_input=["Apple", "Microsoft", "Google", "Amazon"],
     api_key="your-api-key",
@@ -183,7 +192,7 @@ results = lwr.web_research(
 For large batch searches, enable safety mode to save progress after each query. This prevents data loss if the API fails mid-run:
 
 ```python
-results = lwr.web_research(
+results = lwr.precise_web_research(
     search_question="current CEO",
     search_input=large_company_list,  # hundreds of companies
     api_key="your-api-key",

@@ -2,6 +2,8 @@
 
 # llm-web-research
 
+[![PyPI version](https://badge.fury.io/py/llm-web-research.svg)](https://pypi.org/project/llm-web-research/)
+
 A precision-focused LLM-powered web research tool that prioritizes **accuracy over quantity**.
 
 ## Philosophy

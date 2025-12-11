@@ -217,7 +217,7 @@ This package is part of the `cat-llm` ecosystem. For text and image categorizati
 
 ## License
 
-MIT License - see LICENSE file for details.
+`llm-web-research` is distributed under the terms of the [GNU GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.en.html) license.
 
 ## Author
 

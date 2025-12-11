@@ -8,9 +8,12 @@ A precision-focused LLM-powered web research tool that prioritizes **accuracy ov
 
 ## Philosophy
 
+This package is designed for **building datasets at scale**, not one-off queries. While you can use it for individual searches, its primary purpose is batch processing lists of entities to create structured research datasets.
+
 Unlike traditional web scraping or search tools that aim to return as much information as possible, `llm-web-research` is designed with a different goal: **reducing false positives**.
 
 This tool is built for use cases where:
+- **Batch dataset creation** - Process hundreds or thousands of entities into a clean DataFrame
 - **Accuracy matters more than completeness** - You'd rather get fewer results that are correct than many results with errors
 - **Confidence thresholds are important** - The tool will return a non-answer rather than provide uncertain information
 - **Verification is built-in** - Results are cross-checked and validated before being returned
